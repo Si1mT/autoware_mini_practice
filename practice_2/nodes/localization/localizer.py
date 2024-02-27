@@ -60,13 +60,10 @@ class Localizer:
         x, y, z, w = quaternion_from_euler(0, 0, yaw)
         orientation = Quaternion(x, y, z, w)
         
-        # create current pose message
         current_pose_msg = PoseStamped()
-
         # header
         current_pose_msg.header.stamp = msg.header.stamp
         current_pose_msg.header.frame_id = "map"
-
         # pose with orientation
         current_pose_msg.pose.position.x = trans_x
         current_pose_msg.pose.position.y = trans_y
@@ -75,6 +72,17 @@ class Localizer:
 
         # finally publish the created message
         self.current_pose_pub.publish(current_pose_msg)
+
+        current_velocity_msg = TwistStamped()
+        # header
+        current_velocity_msg.header.stamp = msg.header.stamp
+        current_velocity_msg.header.frame_id = "base_link"
+        # velocity
+        velocity = math.sqrt(msg.north_velocity**2 + msg.east_velocity**2)
+        current_velocity_msg.twist.linear.x = velocity
+
+        # publish velocity
+        self.current_velocity_pub.publish(current_velocity_msg)
 
 
         # convert azimuth to yaw angle
