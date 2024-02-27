@@ -54,12 +54,13 @@ class Localizer:
         azimuth = msg.azimuth - azimuth_correction
 
         # convert corrected azimuth to yaw angle
-        yaw = self.convert_azimuth_to_yaw(azimuth)
+        yaw = self.convert_azimuth_to_yaw(math.radians(azimuth))
 
         # Convert yaw to quaternion
         x, y, z, w = quaternion_from_euler(0, 0, yaw)
         orientation = Quaternion(x, y, z, w)
         
+        # current pose message
         current_pose_msg = PoseStamped()
         # header
         current_pose_msg.header.stamp = msg.header.stamp
@@ -69,10 +70,10 @@ class Localizer:
         current_pose_msg.pose.position.y = trans_y
         current_pose_msg.pose.position.z = msg.height - self.undulation
         current_pose_msg.pose.orientation = orientation
-
         # finally publish the created message
         self.current_pose_pub.publish(current_pose_msg)
 
+        # current velocity message
         current_velocity_msg = TwistStamped()
         # header
         current_velocity_msg.header.stamp = msg.header.stamp
@@ -80,9 +81,20 @@ class Localizer:
         # velocity
         velocity = math.sqrt(msg.north_velocity**2 + msg.east_velocity**2)
         current_velocity_msg.twist.linear.x = velocity
-
         # publish velocity
         self.current_velocity_pub.publish(current_velocity_msg)
+
+        # transform message
+        t = TransformStamped()
+        # header
+        t.header.stamp = msg.header.stamp
+        t.header.frame_id = "map"
+        t.child_frame_id = "base_link"
+        # transform
+        t.transform.translation = current_pose_msg.pose.position
+        t.transform.rotation = current_pose_msg.pose.orientation
+        # publish transform
+        self.br.sendTransform(t)
 
 
         # convert azimuth to yaw angle
