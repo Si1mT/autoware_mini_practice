@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 import rospy
 
 from autoware_msgs.msg import Lane
@@ -19,8 +20,7 @@ class PurePursuitFollower:
         pass
 
     def current_pose_callback(self, msg):
-        # TODO
-        pass
+        print('x:', msg.pose.position.x, 'y:', msg.pose.position.y)
 
     def run(self):
         rospy.spin()
