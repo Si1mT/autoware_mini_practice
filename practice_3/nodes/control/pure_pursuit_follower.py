@@ -4,10 +4,14 @@ import rospy
 from autoware_msgs.msg import Lane, VehicleCmd
 from geometry_msgs.msg import PoseStamped
 
+from shapely.geometry import LineString, Point
+from shapely import prepare, distance
+
 class PurePursuitFollower:
     def __init__(self):
 
         # Parameters
+        self.path_linestring = LineString()
 
         # Publishers
         self.vehicle_cmd_pub = rospy.Publisher('/control/vehicle_cmd', VehicleCmd)
@@ -17,11 +21,25 @@ class PurePursuitFollower:
         rospy.Subscriber('/localization/current_pose', PoseStamped, self.current_pose_callback, queue_size=1)
 
     def path_callback(self, msg):
-        # TODO
-        pass
+        # convert waypoints to shapely linestring
+        path_linestring = LineString([(w.pose.pose.position.x, w.pose.pose.position.y) for w in msg.waypoints])
+        # prepare path - creates spatial tree, making the spatial queries more efficient
+        prepare(path_linestring)
+        self.path_linestring = path_linestring
+
 
     def current_pose_callback(self, msg):
-        print('x:', msg.pose.position.x, 'y:', msg.pose.position.y)
+        # print('x:', msg.pose.position.x, 'y:', msg.pose.position.y)
+
+        # checks if path has been created, otherwise return
+        if self.path_linestring == None: return
+
+        # convert ego vehicle location to shapely Point
+        current_pose = Point([msg.pose.position.x, msg.pose.position.y])
+        # find the distance using project function
+        d_ego_from_path_start = self.path_linestring.project(current_pose)
+
+        print('d_ego_from_path_start:', d_ego_from_path_start)
 
         vehicle_cmd = VehicleCmd()
         vehicle_cmd.header.stamp = msg.header.stamp
