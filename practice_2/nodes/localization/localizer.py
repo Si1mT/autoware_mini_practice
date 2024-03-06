@@ -12,12 +12,8 @@ from geometry_msgs.msg import PoseStamped, TwistStamped, Quaternion, TransformSt
 
 from std_msgs.msg import Header
 
-
-
-
 class Localizer:
     def __init__(self):
-
         # Parameters
         self.undulation = rospy.get_param('/undulation')
         utm_origin_lat = rospy.get_param('/utm_origin_lat')
@@ -39,15 +35,12 @@ class Localizer:
         # Coordinate transformer
         self.transformer = Transformer.from_crs(self.crs_wgs84, self.crs_utm)
         self.origin_x, self.origin_y = self.transformer.transform(utm_origin_lat, utm_origin_lon)
-
-
     
     def transform_coordinates(self, msg):
         # transform received coordinates and subtract the custom origin point near Delta building
         trans_x, trans_y = self.transformer.transform(msg.latitude, msg.longitude)
-        trans_x, trans_y = trans_x - self.origin_x, trans_y - self.origin_y
-
-        print('x:   ', trans_x, " y:   ", trans_y, " undulation:   ", self.undulation)
+        trans_x = trans_x - self.origin_x
+        trans_y = trans_y - self.origin_y
 
         # calculate and apply azimuth correction
         azimuth_correction = self.utm_projection.get_factors(msg.longitude, msg.latitude).meridian_convergence
@@ -59,7 +52,10 @@ class Localizer:
         # Convert yaw to quaternion
         x, y, z, w = quaternion_from_euler(0, 0, yaw)
         orientation = Quaternion(x, y, z, w)
-        
+
+        # take the norm of north direction velocity and east direction velocity
+        norm_velocity = math.sqrt(msg.north_velocity**2 + msg.east_velocity**2)
+
         # current pose message
         current_pose_msg = PoseStamped()
         # header
@@ -79,8 +75,7 @@ class Localizer:
         current_velocity_msg.header.stamp = msg.header.stamp
         current_velocity_msg.header.frame_id = "base_link"
         # velocity
-        velocity = math.sqrt(msg.north_velocity**2 + msg.east_velocity**2)
-        current_velocity_msg.twist.linear.x = velocity
+        current_velocity_msg.twist.linear.x = norm_velocity
         # publish velocity
         self.current_velocity_pub.publish(current_velocity_msg)
 
@@ -96,7 +91,6 @@ class Localizer:
         # publish transform
         self.br.sendTransform(t)
 
-
         # convert azimuth to yaw angle
     def convert_azimuth_to_yaw(self, azimuth):
         """
@@ -111,7 +105,7 @@ class Localizer:
         elif yaw < 0:
             yaw += 2 * math.pi
 
-        return yaw    
+        return yaw
 
     def run(self):
         rospy.spin()
